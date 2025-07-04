@@ -13,6 +13,7 @@ import { Address, Hex } from "viem";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { recallActionProvider } from "./recall_action_provider";
 import { coinmarketcapActionProvider } from "./coinmarketcap_action_provider";
+import { CoinGeckoActionProvider } from "./coingecko_action_provider";
 
 /**
  * AgentKit Integration Route
@@ -110,6 +111,7 @@ export async function prepareAgentkitAndWalletProvider(): Promise<{
       actionProviders: [
         recallActionProvider(),
         coinmarketcapActionProvider(),
+        new CoinGeckoActionProvider(),
         wethActionProvider(),
         pythActionProvider(),
         walletActionProvider(),

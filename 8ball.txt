@@ -1,0 +1,253 @@
+# Adaptive Momentum AI Trading Bot Development Prompt
+
+## Objective
+Build an autonomous AI trading bot for a 7-day trading competition using an adaptive momentum strategy. The bot should maximize returns by detecting price breakouts and riding trends across multiple cryptocurrencies and blockchain networks.
+
+## Technology Stack
+- **Framework**: Coinbase AgentKit with TypeScript
+- **Data Provider**: CoinMarketCap API for market data
+- **Execution Provider**: Recall Network for trade execution
+- **AI Integration**: Large Language Model for decision-making and strategy adaptation
+
+## Available Action Providers
+
+### 1. Recall Network Provider (Trade Execution) - EXISTING
+The Recall Network provider is already implemented and should NOT be modified. Use the existing actions:
+- getAccountInfo() - Get account details
+- getBalances() - Current token balances
+- getPortfolio() - Portfolio overview
+- getPrice(token, chain, specificChain) - Get token prices
+- executeTrade(fromToken, toToken, amount, reason, slippageTolerance) - Execute trades
+- getTradeQuote(fromToken, toToken, amount) - Get trade quotes
+- placeTrade(market, side, quantity) - Place market trades
+- getTradingHistory() - Historical trades
+- getAgentTrades() - Agent trade history
+
+### 2. CoinGecko Provider (Market Data) - TO BE IMPLEMENTED
+Create a new CoinGecko provider with these required endpoints:
+```typescript
+// Required CoinGecko API endpoints to implement:
+- getCurrentPrices(coinIds, vsCurrency, includeChanges) - Real-time prices with 24h changes
+- getMarketData(vsCurrency, order, perPage, priceChangePercentage) - Market overview with rankings
+- getHistoricalChart(coinId, vsCurrency, days, interval) - OHLCV data for technical indicators
+- getTrendingTokens() - Hot/trending cryptocurrencies
+- getTopGainersLosers(vsCurrency, duration) - Biggest price movers
+- getGlobalMarketData() - Market cap, BTC dominance, global metrics
+- getDEXPools(network, tokenAddress) - On-chain DEX liquidity data
+- getExchangeData(exchangeId) - Exchange volumes and trading pairs
+```
+
+## Core Strategy: Adaptive Momentum Trading
+
+### Strategy Components
+1. **Multi-Timeframe Momentum Detection**
+   - Monitor 1-minute, 5-minute, 15-minute, and 1-hour timeframes
+   - Identify price breakouts above resistance levels
+   - Confirm with volume spikes (minimum 150% of average volume)
+
+2. **Technical Indicators**
+   - RSI (14-period): Enter when RSI > 60 but < 80 (avoid overbought)
+   - MACD: Confirm momentum with positive MACD crossover
+   - EMA (9, 21, 50): Trade in direction of EMA alignment
+   - Volume: Require 2x average volume for trade entry
+
+3. **Risk Management**
+   - Maximum position size: 10% of portfolio per trade
+   - Stop-loss: 5% below entry price
+   - Take-profit: 15% above entry price
+   - Maximum concurrent positions: 5 trades
+   - Daily loss limit: 20% of starting capital
+
+4. **Cross-Chain Opportunities**
+   - Monitor price differences across supported chains
+   - Execute arbitrage when price differential > 2%
+   - Account for gas fees in profit calculations
+
+## Implementation Requirements
+
+### 1. Data Collection System
+```typescript
+// Implement these CoinGecko API functions:
+- fetchRealTimePrices(coinIds: string[]) - Every 30 seconds using /simple/price
+- fetchMarketOverview() - Every 2 minutes using /coins/markets 
+- fetchTrendingTokens() - Every 2 minutes using /search/trending
+- fetchTopMovers() - Every 2 minutes using /coins/top_gainers_losers
+- fetchHistoricalData(coinId: string, days: number) - For indicators using /coins/{id}/market_chart
+- fetchGlobalMetrics() - Every 5 minutes using /global
+- fetchDEXData(network: string, tokenAddress: string) - For cross-chain analysis
+- calculateTechnicalIndicators(priceData: any[]) - RSI, MACD, EMA from historical data
+- detectVolumeSpikes(marketData: any[]) - Volume anomaly detection
+- scanMomentumOpportunities() - Combine all data sources for signal generation
+```
+
+### 2. AI Decision Engine
+```typescript
+// Core AI trading logic:
+- analyzeMarketConditions() - Assess overall market sentiment
+- identifyMomentumOpportunities() - Scan for breakout patterns
+- calculatePositionSize(confidence: number, volatility: number)
+- generateTradeReason(analysis: any) - For Recall Network execution
+- adaptStrategy(performance: any) - Modify parameters based on results
+```
+
+### 3. Trading Execution Logic
+```typescript
+// Trade execution workflow:
+- validateTradeOpportunity(signal: any) - Final checks before execution
+- executeEntry(token: string, amount: string, reason: string)
+- monitorOpenPositions() - Track stop-loss and take-profit
+- executeExit(position: any, reason: string)
+- rebalancePortfolio() - Maintain risk limits
+```
+
+### 4. Performance Monitoring
+```typescript
+// Track and optimize performance:
+- calculateReturns() - Portfolio performance metrics
+- trackWinRate() - Success rate of trades
+- analyzeDrawdowns() - Risk assessment
+- logTradingDecisions() - For strategy improvement
+- generatePerformanceReport() - Daily summary
+```
+
+## Key Features to Implement
+
+### 1. Momentum Scanner
+- Scan top 100 cryptocurrencies by market cap every 2 minutes using CoinGecko `/coins/markets`
+- Monitor trending tokens every 2 minutes using `/search/trending`
+- Track top gainers/losers every 2 minutes using `/coins/top_gainers_losers`
+- Identify tokens with:
+  - Price increase > 5% in last hour
+  - Volume increase > 200% of 24hr average  
+  - Breaking above key resistance levels
+  - Appearing in trending lists
+  - Strong momentum signals from technical indicators
+
+### 2. Dynamic Position Sizing
+```typescript
+// Calculate position size based on:
+- Market volatility (lower volatility = larger positions)
+- Confidence score from AI analysis (0-100)
+- Available capital and existing positions
+- Token liquidity (minimum $1M daily volume)
+```
+
+### 3. Adaptive Parameters
+```typescript
+// AI should adjust these based on market conditions:
+- entryThreshold: RSI level for trade entry (50-70)
+- stopLossPercentage: Stop loss distance (3-8%)
+- takeProfitPercentage: Take profit target (10-25%)
+- maxPositions: Number of concurrent trades (3-7)
+- volumeMultiplier: Required volume spike (1.5x - 3x)
+```
+
+### 4. Market Regime Detection
+```typescript
+// Adapt strategy to market conditions using CoinGecko global data:
+- bullMarket: BTC dominance < 45%, total market cap growing
+- bearMarket: BTC dominance > 55%, market cap declining  
+- sidewaysMarket: Low volatility, stable dominance
+- volatileMarket: High price swings, frequent trend changes
+// Adjust position sizes and risk parameters accordingly
+```
+
+## Error Handling & Safety
+
+### 1. API Error Management
+- Implement retry logic for failed API calls
+- Graceful degradation when data sources are unavailable
+- Rate limiting compliance for CoinMarketCap API
+
+### 2. Risk Controls
+- Pre-trade validation (sufficient balance, valid tokens)
+- Maximum daily trade count (50 trades)
+- Emergency stop functionality
+- Slippage protection (max 2% slippage)
+
+### 3. Logging & Monitoring
+- Log all trading decisions with reasoning
+- Track API call performance and errors
+- Monitor portfolio value in real-time
+- Alert system for significant losses
+
+## Integration Instructions
+
+### 1. Environment Variables
+The bot expects these environment variables to be configured:
+- `RECALL_API_KEY` - Your Recall Network API key
+- `RECALL_URL` - Your Recall Network API endpoint
+- `COINGECKO_API_KEY` - Your CoinGecko API key (optional - free tier available without key)
+
+### 2. Main Bot Loop
+```typescript
+// Bot execution cycle (every 30 seconds):
+1. Fetch current portfolio status from Recall Network
+2. Update market data from CoinGecko:
+   - Real-time prices (/simple/price)
+   - Market overview (/coins/markets) 
+   - Trending tokens (/search/trending)
+   - Top movers (/coins/top_gainers_losers)
+3. Analyze momentum opportunities using combined data
+4. Check existing positions for exit signals
+5. Execute new trades if opportunities found
+6. Log performance and adjust parameters
+7. Sleep until next cycle
+
+// Every 5 minutes additionally:
+- Fetch global market metrics (/global)
+- Update historical data for technical indicators
+- Scan DEX pools for arbitrage opportunities
+```
+
+### 3. AI Prompt Integration
+The bot should use AI for:
+- **Market Analysis**: "Analyze current market conditions and identify momentum opportunities"
+- **Trade Decisions**: "Should I enter a position in [TOKEN] based on this data: [DATA]"
+- **Risk Assessment**: "Evaluate the risk of this trade given current portfolio exposure"
+- **Strategy Adaptation**: "How should I adjust my strategy based on recent performance?"
+
+## Success Metrics
+- **Primary Goal**: Maximize 7-day return percentage
+- **Risk Metrics**: Maximum drawdown < 30%
+- **Efficiency**: Sharpe ratio > 1.5
+- **Activity**: Average 10-20 trades per day
+- **Win Rate**: Target > 60% profitable trades
+
+## Deliverables
+1. **CoinGecko Action Provider** - New implementation with all essential endpoints
+2. **Main Trading Bot** - Core logic that uses existing Recall provider + new CoinGecko provider
+3. Configuration system for strategy parameters
+4. Real-time dashboard for monitoring (optional)
+5. Comprehensive logging and error handling
+6. Performance analytics and reporting
+7. Documentation for setup and operation
+
+**DO NOT MODIFY**: The existing `recall_action_provider.ts` file should remain unchanged.
+
+## CoinGecko API Implementation Priority
+**High Priority (Every 30 seconds - 2 minutes):**
+- `/simple/price` - Real-time prices with 24h changes
+- `/coins/markets` - Market overview and rankings
+- `/search/trending` - Trending tokens
+- `/coins/top_gainers_losers` - Price movers
+
+**Medium Priority (Every 5 minutes):**
+- `/global` - Global market metrics
+- `/coins/{id}/market_chart` - Historical data for indicators
+
+**Low Priority (Every 15+ minutes):**
+- `/onchain/networks/{network}/tokens/{address}/pools` - DEX data
+- `/exchanges` - Exchange information
+
+## Implementation Notes
+- CoinGecko free tier: 30 calls/minute, 10,000 calls/month
+- Optimize by batching multiple coins in single API calls
+- Cache data appropriately to avoid rate limiting
+- Start with top 50 cryptocurrencies before expanding
+- Use small position sizes initially (2-5% per trade)
+- Focus on liquid tokens with high daily volume
+- Implement gradual position sizing increases as confidence grows
+- Plan for 24/7 operation throughout the 7-day competition
+
+Remember: The bot must be fully autonomous, making all trading decisions without human intervention while maintaining strict risk controls to protect capital.
