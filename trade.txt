@@ -1,0 +1,223 @@
+# Recall Action Provider - Trade Execute API
+
+## Overview
+Create a Recall action provider that executes token trades on the Recall network using the trade execution endpoint.
+
+## API Endpoint
+- **URL**: `POST /trade/execute`
+- **Base URL**: `https://api.competitions.recall.network/api`
+- **Method**: POST
+- **Content-Type**: `application/json`
+- **Authentication**: Bearer token required
+
+## Request Body Schema
+
+### Required Parameters
+
+#### fromToken (required)
+- **Type**: string
+- **Description**: Token address to sell
+- **Example**: `"So11111111111111111111111111111111111111112"`
+
+#### toToken (required)
+- **Type**: string
+- **Description**: Token address to buy
+- **Example**: `"EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"`
+
+#### amount (required)
+- **Type**: string
+- **Description**: Amount of fromToken to trade
+- **Example**: `"1.5"`
+
+#### reason (required)
+- **Type**: string
+- **Description**: Reason for executing this trade
+- **Example**: `"Strong upward momentum in the market combined with positive news on this token's ecosystem growth."`
+
+### Optional Parameters
+
+#### slippageTolerance (optional)
+- **Type**: string
+- **Description**: Slippage tolerance in percentage
+- **Example**: `"0.5"`
+
+#### fromChain (optional)
+- **Type**: string
+- **Description**: Blockchain type for fromToken
+- **Example**: `"svm"`
+
+#### fromSpecificChain (optional)
+- **Type**: string
+- **Description**: Specific chain for fromToken
+- **Example**: `"mainnet"`
+
+#### toChain (optional)
+- **Type**: string
+- **Description**: Blockchain type for toToken
+- **Example**: `"svm"`
+
+#### toSpecificChain (optional)
+- **Type**: string
+- **Description**: Specific chain for toToken
+- **Example**: `"mainnet"`
+
+## Action Provider Requirements
+
+### Input Schema
+```json
+{
+  "type": "object",
+  "properties": {
+    "fromToken": {
+      "type": "string",
+      "description": "Token address to sell",
+      "minLength": 1
+    },
+    "toToken": {
+      "type": "string",
+      "description": "Token address to buy",
+      "minLength": 1
+    },
+    "amount": {
+      "type": "string",
+      "description": "Amount of fromToken to trade",
+      "pattern": "^[0-9]+(\\.[0-9]+)?$"
+    },
+    "reason": {
+      "type": "string",
+      "description": "Reason for executing this trade",
+      "minLength": 10,
+      "maxLength": 500
+    },
+    "slippageTolerance": {
+      "type": "string",
+      "description": "Slippage tolerance in percentage",
+      "pattern": "^[0-9]+(\\.[0-9]+)?$"
+    },
+    "fromChain": {
+      "type": "string",
+      "description": "Blockchain type for fromToken"
+    },
+    "fromSpecificChain": {
+      "type": "string",
+      "description": "Specific chain for fromToken"
+    },
+    "toChain": {
+      "type": "string",
+      "description": "Blockchain type for toToken"
+    },
+    "toSpecificChain": {
+      "type": "string",
+      "description": "Specific chain for toToken"
+    }
+  },
+  "required": ["fromToken", "toToken", "amount", "reason"]
+}
+```
+
+### Expected Response Format
+The action should return the trade execution response containing:
+
+```json
+{
+  "success": boolean,
+  "transaction": {
+    "id": "string",
+    "agentId": "string",
+    "competitionId": "string",
+    "fromToken": "string",
+    "toToken": "string",
+    "fromAmount": number,
+    "toAmount": number,
+    "price": number,
+    "success": boolean,
+    "error": "string",
+    "reason": "string",
+    "tradeAmountUsd": number,
+    "timestamp": "ISO 8601 datetime string",
+    "fromChain": "string",
+    "toChain": "string",
+    "fromSpecificChain": "string",
+    "toSpecificChain": "string",
+    "toTokenSymbol": "string",
+    "fromTokenSymbol": "string"
+  }
+}
+```
+
+### Validation Rules
+1. Validate that `amount` is a positive number
+2. Ensure `fromToken` and `toToken` are different addresses
+3. Validate `slippageTolerance` is within reasonable bounds (0-100%)
+4. Ensure `reason` provides meaningful context (minimum 10 characters)
+5. Validate token addresses format if known patterns exist
+6. Check that chain parameters are consistent between from/to tokens
+
+### Authentication Requirements
+- Include Bearer token in Authorization header
+- Handle authentication errors gracefully
+- Provide clear error messages for invalid tokens
+
+### Error Handling
+Handle the following scenarios:
+- **Authentication errors** (401): Invalid or expired bearer token
+- **Validation errors** (400): Invalid request parameters
+- **Insufficient funds**: Not enough balance for the trade
+- **Network errors**: Connection timeouts or API unavailability
+- **Trade execution failures**: Slippage exceeded, liquidity issues
+- **Rate limiting**: API request limits exceeded
+
+### Example Usage
+```
+User: "Swap 1.5 SOL to USDC due to market volatility with 0.5% slippage"
+Action Input: {
+  "fromToken": "So11111111111111111111111111111111111111112",
+  "toToken": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+  "amount": "1.5",
+  "reason": "Converting to stablecoin due to expected market volatility and risk management strategy",
+  "slippageTolerance": "0.5",
+  "fromChain": "svm",
+  "fromSpecificChain": "mainnet",
+  "toChain": "svm",
+  "toSpecificChain": "mainnet"
+}
+```
+
+## Implementation Notes
+
+### Security Considerations
+- Store bearer token securely (environment variables or secure storage)
+- Validate all inputs before sending to API
+- Log trade requests for audit purposes (without sensitive data)
+- Implement rate limiting to prevent API abuse
+
+### Performance Optimization
+- Implement request timeouts (30-60 seconds for trades)
+- Add retry logic for transient failures
+- Cache token metadata if frequently used
+- Monitor API response times
+
+### User Experience
+- Provide clear feedback during trade execution
+- Show estimated trade amounts before execution
+- Display transaction details after completion
+- Handle partial fills or trade rejections gracefully
+
+### Monitoring and Logging
+- Log all trade attempts with timestamps
+- Track success/failure rates
+- Monitor API response times
+- Alert on repeated failures or errors
+
+### Configuration
+- Make slippage tolerance configurable
+- Allow customization of timeout values
+- Support different environments (testnet/mainnet)
+- Enable/disable trade execution for safety
+
+## Testing Requirements
+- Test with valid trade scenarios
+- Test error handling for invalid inputs
+- Test authentication failure scenarios
+- Test network timeout scenarios
+- Test with different token pairs and amounts

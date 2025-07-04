@@ -1,0 +1,93 @@
+# Recall Action Provider - Price API
+
+## Overview
+Create a Recall action provider that fetches cryptocurrency token prices using the price API endpoint.
+
+## API Endpoint
+- **URL**: `/api/price`
+- **Method**: GET
+- **Description**: Retrieves price information for a specified token
+
+## Required Parameters
+
+### token (required)
+- **Type**: string
+- **Description**: The token contract address
+- **Example**: `0x1234567890abcdef1234567890abcdef12345678`
+
+### chain (required)
+- **Type**: string
+- **Description**: The blockchain network type
+- **Allowed values**: `"evm"` | `"svm"`
+- **Example**: `"evm"`
+
+### specificChain (required)
+- **Type**: string
+- **Description**: The specific blockchain network
+- **Allowed values**: 
+  - For EVM chains: `"eth"` | `"polygon"` | `"bsc"` | `"arbitrum"` | `"optimism"` | `"avalanche"` | `"base"` | `"linea"` | `"zksync"` | `"scroll"` | `"mantle"`
+  - For SVM chains: `"svm"`
+- **Example**: `"eth"`
+
+## Action Provider Requirements
+
+### Input Schema
+```json
+{
+  "type": "object",
+  "properties": {
+    "token": {
+      "type": "string",
+      "description": "Token contract address",
+      "pattern": "^0x[a-fA-F0-9]{40}$"
+    },
+    "chain": {
+      "type": "string",
+      "enum": ["evm", "svm"],
+      "description": "Blockchain network type"
+    },
+    "specificChain": {
+      "type": "string",
+      "enum": ["eth", "polygon", "bsc", "arbitrum", "optimism", "avalanche", "base", "linea", "zksync", "scroll", "mantle", "svm"],
+      "description": "Specific blockchain network"
+    }
+  },
+  "required": ["token", "chain", "specificChain"]
+}
+```
+
+### Validation Rules
+1. Validate that `token` is a valid contract address format
+2. Ensure `chain` and `specificChain` compatibility:
+   - If `chain` is `"evm"`, `specificChain` must be one of the EVM options
+   - If `chain` is `"svm"`, `specificChain` must be `"svm"`
+3. Handle error cases for invalid token addresses or unsupported chains
+
+### Expected Response Format
+The action should return the price data in a structured format that includes:
+- Token price
+- Chain information
+- Timestamp
+- Any additional metadata from the API response
+
+### Error Handling
+- Handle network timeouts
+- Handle invalid token addresses
+- Handle unsupported chain combinations
+- Provide meaningful error messages to users
+
+### Example Usage
+```
+User: "Get the price of USDC on Ethereum"
+Action Input: {
+  "token": "0xa0b86a33e6776c8554e8c1a8b9b5e7e8c9d0e0f0",
+  "chain": "evm",
+  "specificChain": "eth"
+}
+```
+
+## Implementation Notes
+- Use appropriate HTTP client with timeout settings
+- Implement caching if needed for frequently requested prices
+- Consider rate limiting to avoid API abuse
+- Log requests for debugging and monitoring purposes

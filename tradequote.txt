@@ -1,0 +1,248 @@
+# Recall Action Provider - Trade Quote API
+
+## Overview
+Create a Recall action provider that retrieves trading quotes for token pairs on the Recall network using the trade quote endpoint.
+
+## API Endpoint
+- **URL**: `GET /trade/quote`
+- **Base URL**: `https://api.competitions.recall.network/api`
+- **Method**: GET
+- **Authentication**: Bearer token required
+
+## Query Parameters
+
+### Required Parameters
+
+#### fromToken (required)
+- **Type**: string
+- **Description**: Token address to sell
+- **Example**: `"So11111111111111111111111111111111111111112"`
+
+#### toToken (required)
+- **Type**: string
+- **Description**: Token address to buy
+- **Example**: `"EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"`
+
+#### amount (required)
+- **Type**: string
+- **Description**: Amount of fromToken to get quote for
+- **Example**: `"1.5"`
+
+### Optional Parameters
+
+#### fromChain (optional)
+- **Type**: string
+- **Description**: Blockchain type for fromToken
+- **Example**: `"svm"`
+
+#### fromSpecificChain (optional)
+- **Type**: string
+- **Description**: Specific chain for fromToken
+- **Example**: `"mainnet"`
+
+#### toChain (optional)
+- **Type**: string
+- **Description**: Blockchain type for toToken
+- **Example**: `"svm"`
+
+#### toSpecificChain (optional)
+- **Type**: string
+- **Description**: Specific chain for toToken
+- **Example**: `"mainnet"`
+
+## Action Provider Requirements
+
+### Input Schema
+```json
+{
+  "type": "object",
+  "properties": {
+    "fromToken": {
+      "type": "string",
+      "description": "Token address to sell",
+      "minLength": 1
+    },
+    "toToken": {
+      "type": "string",
+      "description": "Token address to buy",
+      "minLength": 1
+    },
+    "amount": {
+      "type": "string",
+      "description": "Amount of fromToken to get quote for",
+      "pattern": "^[0-9]+(\\.[0-9]+)?$"
+    },
+    "fromChain": {
+      "type": "string",
+      "description": "Blockchain type for fromToken"
+    },
+    "fromSpecificChain": {
+      "type": "string",
+      "description": "Specific chain for fromToken"
+    },
+    "toChain": {
+      "type": "string",
+      "description": "Blockchain type for toToken"
+    },
+    "toSpecificChain": {
+      "type": "string",
+      "description": "Specific chain for toToken"
+    }
+  },
+  "required": ["fromToken", "toToken", "amount"]
+}
+```
+
+### Expected Response Format
+The action should return the quote response containing:
+
+```json
+{
+  "fromToken": "string",
+  "toToken": "string",
+  "fromAmount": number,
+  "toAmount": number,
+  "exchangeRate": number,
+  "slippage": number,
+  "tradeAmountUsd": number,
+  "prices": {
+    "fromToken": number,
+    "toToken": number
+  },
+  "symbols": {
+    "fromTokenSymbol": "string",
+    "toTokenSymbol": "string"
+  },
+  "chains": {
+    "fromChain": "string",
+    "toChain": "string"
+  }
+}
+```
+
+### Validation Rules
+1. Validate that `amount` is a positive number
+2. Ensure `fromToken` and `toToken` are different addresses
+3. Validate token addresses format if known patterns exist
+4. Check that chain parameters are consistent between from/to tokens
+5. Ensure amount is within reasonable bounds (not zero or negative)
+
+### Authentication Requirements
+- Include Bearer token in Authorization header
+- Handle authentication errors gracefully
+- Provide clear error messages for invalid tokens
+
+### Error Handling
+Handle the following scenarios:
+- **Authentication errors** (401): Invalid or expired bearer token
+- **Validation errors** (400): Invalid query parameters
+- **Token not found** (404): Invalid token addresses
+- **Insufficient liquidity**: Not enough liquidity for the requested amount
+- **Network errors**: Connection timeouts or API unavailability
+- **Rate limiting**: API request limits exceeded
+- **Cross-chain issues**: Invalid chain combinations
+
+### URL Construction
+The action provider should properly construct the GET request URL with query parameters:
+```
+https://api.competitions.recall.network/api/trade/quote?fromToken={fromToken}&toToken={toToken}&amount={amount}&fromChain={fromChain}&fromSpecificChain={fromSpecificChain}&toChain={toChain}&toSpecificChain={toSpecificChain}
+```
+
+### Example Usage
+```
+User: "Get a quote for swapping 1.5 SOL to USDC"
+Action Input: {
+  "fromToken": "So11111111111111111111111111111111111111112",
+  "toToken": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+  "amount": "1.5",
+  "fromChain": "svm",
+  "fromSpecificChain": "mainnet",
+  "toChain": "svm",
+  "toSpecificChain": "mainnet"
+}
+```
+
+## Implementation Notes
+
+### Security Considerations
+- Store bearer token securely (environment variables or secure storage)
+- Validate all inputs before constructing URL
+- Sanitize query parameters to prevent injection attacks
+- Log quote requests for monitoring (without sensitive data)
+
+### Performance Optimization
+- Implement request timeouts (10-30 seconds for quotes)
+- Add retry logic for transient failures
+- Cache frequently requested quotes for short periods (30-60 seconds)
+- Monitor API response times
+
+### User Experience
+- Provide clear, formatted quote information
+- Show exchange rates and estimated amounts
+- Display slippage information prominently
+- Handle stale quotes gracefully (quotes expire quickly)
+
+### Data Formatting
+- Format token amounts with appropriate decimal places
+- Display USD values with currency formatting
+- Show exchange rates in a user-friendly format
+- Include percentage formatting for slippage
+
+### Quote Freshness
+- Implement quote expiration logic
+- Refresh quotes automatically if too old
+- Warn users about stale quotes
+- Consider implementing real-time quote updates
+
+## Response Processing
+
+### Quote Information Display
+Format the response data for clear user understanding:
+
+```
+Quote Summary:
+- From: {fromAmount} {fromTokenSymbol} ({fromChain})
+- To: {toAmount} {toTokenSymbol} ({toChain})
+- Exchange Rate: 1 {fromTokenSymbol} = {exchangeRate} {toTokenSymbol}
+- Slippage: {slippage}%
+- Trade Value: ${tradeAmountUsd}
+- Individual Prices:
+  - {fromTokenSymbol}: ${prices.fromToken}
+  - {toTokenSymbol}: ${prices.toToken}
+```
+
+### Error Response Handling
+- Parse API error responses appropriately
+- Provide user-friendly error messages
+- Include actionable suggestions when possible
+- Log detailed error information for debugging
+
+## Testing Requirements
+- Test with valid token pairs and amounts
+- Test error handling for invalid inputs
+- Test authentication failure scenarios
+- Test network timeout scenarios
+- Test with different chain combinations
+- Test with extreme amounts (very small/large)
+- Test with non-existent token addresses
+
+## Monitoring and Alerting
+- Track quote request success/failure rates
+- Monitor API response times
+- Alert on repeated failures or errors
+- Track most frequently requested token pairs
+- Monitor quote accuracy over time
+
+## Configuration Options
+- Configurable request timeouts
+- Quote cache duration settings
+- Minimum/maximum amount limits
+- Supported chain configurations
+- Rate limiting parameters
+
+## Integration Considerations
+- Seamless integration with trade execution action
+- Quote data should be compatible with execute endpoint
+- Consider implementing quote-to-execute workflow
+- Handle quote expiration before execution
+- Provide quote refresh mechanisms
