@@ -1,0 +1,21 @@
+[
+  {
+    "id": "1752066866910onl063nfbhk",
+    "fromToken": "0xd9aAEc86B65D86f6A7B5B1b0c42FFA531710b6CA",
+    "fromTokenSymbol": "USDC",
+    "fromChain": "evm",
+    "fromSpecificChain": "base",
+    "fromAmount": 2000,
+    "toToken": "0x675b68aa4d9c2d3bb3f0397048e62e6b7192079c",
+    "toTokenSymbol": "FUEL",
+    "toChain": "evm",
+    "toSpecificChain": "evm",
+    "toAmount": 226000.72371961205,
+    "price": 0.00877862,
+    "tradeAmountUsd": 2000,
+    "timestamp": "2025-07-09T13:14:26.910Z",
+    "competitionId": "N/A",
+    "agentId": "N/A",
+    "reason": "AI Reason: Analyzing the current state of FUEL, the price is above the lower Bollinger Band, which suggests some support at this level. However, the RSI stands at 29.91, indicating that the asset is in oversold territory and has not crossed above its moving average, suggesting a lack of momentum for recovery. The MACD has also not crossed above its signal line, reflecting bearish sentiment.\n\nWhile the total volume is relatively low compared to the overall market cap, the current indicators suggest caution regarding potential buying opportunities.\n\nTaking these factors into account, I would assign a confidence score of:\n\n<score>0.30</score>"
+  }
+]

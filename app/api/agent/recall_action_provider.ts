@@ -127,7 +127,7 @@ class RecallActionProvider extends ActionProvider<WalletProvider> {
         }
 
         try {
-          const response = await fetch(`${process.env.RECALL_URL}/trades`, {
+          const response = await fetch(`${process.env.RECALL_URL}/trade/execute`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",

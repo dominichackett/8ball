@@ -45,7 +45,7 @@ export async function createAgent(): Promise<ReturnType<typeof createReactAgent>
   if (!process.env.OPENAI_API_KEY) {
     throw new Error("I need an OPENAI_API_KEY in your .env file to power my intelligence.");
   }
-  console.log("DEBUG: OPENAI_API_KEY value:", process.env.OPENAI_API_KEY ? "(key is present)" : "(key is NOT present)");
+  
 
   const { agentkit, walletProvider } = await prepareAgentkitAndWalletProvider();
 

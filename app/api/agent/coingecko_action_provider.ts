@@ -1,8 +1,13 @@
 import { ActionProvider, CreateAction, Network, WalletProvider } from "@coinbase/agentkit";
 import { z } from "zod";
 import axios from "axios";
+import 'dotenv/config';
 
-const COINGECKO_API_BASE_URL = "https://api.coingecko.com/api/v3";
+const coingeckoApi = axios.create({
+    baseURL: "https://api.coingecko.com/api/v3",
+    headers: process.env.COINGECKO_API_KEY ? { 'x-cg-demo-api-key': process.env.COINGECKO_API_KEY } : {},
+});
+
 
 export class CoinGeckoActionProvider extends ActionProvider<WalletProvider> {
   constructor() {
@@ -29,7 +34,7 @@ export class CoinGeckoActionProvider extends ActionProvider<WalletProvider> {
         params.include_24hr_change = "true";
       }
 
-      const response = await axios.get(`${COINGECKO_API_BASE_URL}/simple/price`, {
+      const response = await coingeckoApi.get(`/simple/price`, {
         params,
         timeout: 5000,
       });
@@ -60,7 +65,7 @@ export class CoinGeckoActionProvider extends ActionProvider<WalletProvider> {
       if (perPage) params.per_page = perPage;
       if (priceChangePercentage) params.price_change_percentage = priceChangePercentage;
 
-      const response = await axios.get(`${COINGECKO_API_BASE_URL}/coins/markets`, {
+      const response = await coingeckoApi.get(`/coins/markets`, {
         params,
         timeout: 5000,
       });
@@ -90,7 +95,7 @@ export class CoinGeckoActionProvider extends ActionProvider<WalletProvider> {
       };
       if (interval) params.interval = interval;
 
-      const response = await axios.get(`${COINGECKO_API_BASE_URL}/coins/${coinId}/market_chart`, {
+      const response = await coingeckoApi.get(`/coins/${coinId}/market_chart`, {
         params,
         timeout: 10000,
       });
@@ -106,9 +111,9 @@ export class CoinGeckoActionProvider extends ActionProvider<WalletProvider> {
     description: "Fetches hot/trending cryptocurrencies.",
     schema: z.object({}),
   })
-  async getTrendingTokens(input: z.infer<typeof this.getTrendingTokens.schema>): Promise<any> {
+  async getTrendingTokens(): Promise<any> {
     try {
-      const response = await axios.get(`${COINGECKO_API_BASE_URL}/search/trending`, {
+      const response = await coingeckoApi.get(`/search/trending`, {
         timeout: 5000,
       });
       return { success: true, data: response.data };
@@ -129,7 +134,7 @@ export class CoinGeckoActionProvider extends ActionProvider<WalletProvider> {
   async getTopGainersLosers(input: z.infer<typeof this.getTopGainersLosers.schema>): Promise<any> {
     try {
       const { vsCurrency, duration } = input;
-      const response = await axios.get(`${COINGECKO_API_BASE_URL}/coins/markets`, {
+      const response = await coingeckoApi.get(`/coins/markets`, {
         params: {
           vs_currency: vsCurrency,
           price_change_percentage: duration,
@@ -162,9 +167,9 @@ export class CoinGeckoActionProvider extends ActionProvider<WalletProvider> {
     description: "Fetches global market cap, BTC dominance, and other global metrics.",
     schema: z.object({}),
   })
-  async getGlobalMarketData(input: z.infer<typeof this.getGlobalMarketData.schema>): Promise<any> {
+  async getGlobalMarketData(): Promise<any> {
     try {
-      const response = await axios.get(`${COINGECKO_API_BASE_URL}/global`, {
+      const response = await coingeckoApi.get(`/global`, {
         timeout: 5000,
       });
       return { success: true, data: response.data };
@@ -185,7 +190,7 @@ export class CoinGeckoActionProvider extends ActionProvider<WalletProvider> {
   async getDEXPools(input: z.infer<typeof this.getDEXPools.schema>): Promise<any> {
     try {
       const { network, tokenAddress } = input;
-      const response = await axios.get(`${COINGECKO_API_BASE_URL}/onchain/networks/${network}/tokens/${tokenAddress}/pools`, {
+      const response = await coingeckoApi.get(`/onchain/networks/${network}/tokens/${tokenAddress}/pools`, {
         timeout: 10000,
       });
       return { success: true, data: response.data };
@@ -205,7 +210,7 @@ export class CoinGeckoActionProvider extends ActionProvider<WalletProvider> {
   async getExchangeData(input: z.infer<typeof this.getExchangeData.schema>): Promise<any> {
     try {
       const { exchangeId } = input;
-      const response = await axios.get(`${COINGECKO_API_BASE_URL}/exchanges/${exchangeId}`, {
+      const response = await coingeckoApi.get(`/exchanges/${exchangeId}`, {
         timeout: 5000,
       });
       return { success: true, data: response.data };
@@ -215,7 +220,9 @@ export class CoinGeckoActionProvider extends ActionProvider<WalletProvider> {
     }
   }
 
-  supportsNetwork = (network: Network) => true;
+  supportsNetwork(network: Network): boolean {
+    return true;
+  }
 }
 
 export const coingeckoActionProvider = () => new CoinGeckoActionProvider();
