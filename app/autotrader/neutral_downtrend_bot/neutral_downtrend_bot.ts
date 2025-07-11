@@ -33,6 +33,18 @@ tokenTakeProfitDollars.set('LINK', .10);
 tokenTakeProfitDollars.set('UNI', 0.10);
 tokenTakeProfitDollars.set('POL', 0.02);
 tokenTakeProfitDollars.set('WXRP', 0.02);
+tokenTakeProfitDollars.set('YBR', 0.0003);
+
+// New: Token-specific position sizes
+const tokenPositionSizes = new Map<string, number>();
+tokenPositionSizes.set('WETH', 1); // Special case: 1 token
+tokenPositionSizes.set('LINK', 1500);
+tokenPositionSizes.set('SOL', 1500);
+tokenPositionSizes.set('UNI', 1000);
+tokenPositionSizes.set('POL', 2000);
+tokenPositionSizes.set('WXRP', 2000);
+tokenPositionSizes.set('YBR', 1000);
+
 
 // --- Token Configuration ---
 const TRADABLE_TOKENS = new Map<string, { address: string; chain: 'evm' | 'svm'; specificChain: string; symbol: string }>();
@@ -91,6 +103,7 @@ async function initializeTradableTokens() {
     TRADABLE_TOKENS.set('wrapped-xrp', { address: '0x39fbbabf11738317a448031930706cd3e612e1b9', chain: 'evm', specificChain: 'eth', symbol: 'WXRP' });
     TRADABLE_TOKENS.set('uniswap', { address: '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984', chain: 'evm', specificChain: 'eth', symbol: 'UNI' });
     TRADABLE_TOKENS.set('polygon-ecosystem-token', { address: '0x455e53cbb86018ac2b8092fdcd39d8444affc3f6', chain: 'evm', specificChain: 'eth', symbol: 'POL' });
+    TRADABLE_TOKENS.set('yieldbricks', { address: '0x11920f139a3121c2836e01551d43f95b3c31159c', chain: 'evm', specificChain: 'arbitrum', symbol: 'YBR' });
 
     console.log(`Initialization complete. ${TRADABLE_TOKENS.size} tokens are tradable.`);
 }
@@ -292,7 +305,20 @@ async function findSidewaysOpportunities(marketData: any[], marketTrend: string)
         }
 
         const prices = ohlcData.map((data: number[]) => data[4]); // Use close prices for RSI and BB
-        const currentPrice = prices[prices.length - 1];
+        
+        const tokenInfo = TRADABLE_TOKENS.get(coin.id);
+        if (!tokenInfo) {
+            console.log(`Token info not found for ${coin.id}. Skipping.`);
+            continue;
+        }
+
+        const recallPriceResult = await recall.getPrice({ token: tokenInfo.address, chain: tokenInfo.chain, specificChain: tokenInfo.specificChain });
+        if (!recallPriceResult || !recallPriceResult.price) {
+            console.log(`Could not get current price for ${coin.symbol} from Recall. Skipping.`);
+            continue;
+        }
+        const currentPrice = recallPriceResult.price;
+        const coingeckoCurrentPrice = coin.current_price;
 
         const rsiValues = calculateRSI(prices);
         const currentRSI = rsiValues[rsiValues.length - 1];
@@ -315,9 +341,11 @@ async function findSidewaysOpportunities(marketData: any[], marketTrend: string)
         const isOpportunity = isNearLowerBB && isRsiOversold;
 
         // Log analysis for sideways strategy
-        console.log(`\n--- ${coin.symbol.toUpperCase()} Sideways Analysis ---`);
-        console.log(`  Current Price: ${currentPrice.toFixed(4)}`);
-        console.log(`  Lower Bollinger Band: ${bollingerBands.lower.toFixed(4)}`);
+        console.log(`
+--- ${coin.symbol.toUpperCase()} Sideways Analysis ---`);
+        console.log(`  Current Price (Recall): ${currentPrice.toFixed(5)}`);
+        console.log(`  Current Price (CoinGecko): ${coingeckoCurrentPrice.toFixed(5)}`);
+        console.log(`  Lower Bollinger Band: ${bollingerBands.lower.toFixed(5)}`);
         console.log(`  Current RSI: ${currentRSI.toFixed(2)}`);
         console.log(`  Is Near Lower BB: ${isNearLowerBB}`);
         console.log(`  Is RSI Oversold: ${isRsiOversold}`);
@@ -325,7 +353,6 @@ async function findSidewaysOpportunities(marketData: any[], marketTrend: string)
         console.log(`--------------------------`);
 
         if (isOpportunity) {
-            const tokenInfo = TRADABLE_TOKENS.get(coin.id);
             const opportunityDetails = { ...coin, ...tokenInfo, isOpportunity, currentPrice }; // Pass currentPrice
             const { confidence, reason } = await getTradeConfidence(opportunityDetails, marketTrend);
             opportunities.push({ ...opportunityDetails, aiConfidence: confidence, aiReason: reason });
@@ -345,7 +372,20 @@ async function findDowntrendOpportunities(marketData: any[], marketTrend: string
         }
 
         const prices = ohlcData.map((data: number[]) => data[4]); // Use close prices
-        const currentPrice = prices[prices.length - 1];
+        
+        const tokenInfo = TRADABLE_TOKENS.get(coin.id);
+        if (!tokenInfo) {
+            console.log(`Token info not found for ${coin.id}. Skipping.`);
+            continue;
+        }
+
+        const recallPriceResult = await recall.getPrice({ token: tokenInfo.address, chain: tokenInfo.chain, specificChain: tokenInfo.specificChain });
+        if (!recallPriceResult || !recallPriceResult.price) {
+            console.log(`Could not get current price for ${coin.symbol} from Recall. Skipping.`);
+            continue;
+        }
+        const currentPrice = recallPriceResult.price;
+        const coingeckoCurrentPrice = coin.current_price;
 
         const rsiValues = calculateRSI(prices);
         const currentRSI = rsiValues[rsiValues.length - 1];
@@ -370,9 +410,11 @@ async function findDowntrendOpportunities(marketData: any[], marketTrend: string
         const isOpportunity = isSignificantlyBelowEma && isRsiOversold;
 
         // Log analysis for downtrend strategy
-        console.log(`\n--- ${coin.symbol.toUpperCase()} Downtrend Analysis ---`);
-        console.log(`  Current Price: ${currentPrice.toFixed(4)}`);
-        console.log(`  ${longTermEmaPeriod}-period EMA: ${lastLongTermEma.toFixed(4)}`);
+        console.log(`
+--- ${coin.symbol.toUpperCase()} Downtrend Analysis ---`);
+        console.log(`  Current Price (Recall): ${currentPrice.toFixed(5)}`);
+        console.log(`  Current Price (CoinGecko): ${coingeckoCurrentPrice.toFixed(5)}`);
+        console.log(`  ${longTermEmaPeriod}-period EMA: ${lastLongTermEma.toFixed(5)}`);
         console.log(`  Current RSI: ${currentRSI.toFixed(2)}`);
         console.log(`  Is Significantly Below EMA: ${isSignificantlyBelowEma}`);
         console.log(`  Is RSI Oversold: ${isRsiOversold}`);
@@ -380,7 +422,6 @@ async function findDowntrendOpportunities(marketData: any[], marketTrend: string
         console.log(`--------------------------`);
 
         if (isOpportunity) {
-            const tokenInfo = TRADABLE_TOKENS.get(coin.id);
             const opportunityDetails = { ...coin, ...tokenInfo, isOpportunity, currentPrice }; // Pass currentPrice
             const { confidence, reason } = await getTradeConfidence(opportunityDetails, marketTrend);
             opportunities.push({ ...opportunityDetails, aiConfidence: confidence, aiReason: reason });
@@ -465,21 +506,26 @@ async function executeTrades(opportunities: any[], tradeableEvmUsdcBalances: Map
         }
 
         let currentPositionSizeInUsdc; // This will be the USDC amount to spend
-        let tokenAmountToBuy; // This will be the amount of the token to receive
+
+        const positionSize = tokenPositionSizes.get(opportunity.symbol.toUpperCase());
+
+        if (positionSize === undefined) {
+            console.log(`No position size configured for ${opportunity.symbol.toUpperCase()}. Skipping trade.`);
+            continue;
+        }
 
         if (opportunity.symbol.toUpperCase() === 'WETH') {
-            // Get WETH price in USDC using recall.getPrice
+            // WETH is a special case where the size is in tokens, not USDC
             const wethPriceResult = await recall.getPrice({ token: TRADABLE_TOKENS.get('weth')?.address, chain: 'evm', specificChain: 'eth' });
             if (!wethPriceResult || !wethPriceResult.price) {
                 console.log(`Could not get current price for WETH using recall. Skipping trade.`);
                 continue;
             }
             const wethPriceInUsdc = wethPriceResult.price;
-            currentPositionSizeInUsdc = wethPriceInUsdc; // Cost to buy 1 WETH
-            tokenAmountToBuy = 1; // We want to buy 1 WETH
+            currentPositionSizeInUsdc = wethPriceInUsdc * positionSize; // positionSize is 1 for WETH
         } else {
-            currentPositionSizeInUsdc = 1000; // Spend 1000 USDC for other tokens
-            tokenAmountToBuy = 0; // This will be determined by the recall.executeTrade result
+            // For all other tokens, the position size is in USDC
+            currentPositionSizeInUsdc = positionSize;
         }
 
         let fromTokenAddress, fromChain, fromSpecificChain;
@@ -512,6 +558,7 @@ async function executeTrades(opportunities: any[], tradeableEvmUsdcBalances: Map
         console.log(`Executing BUY for ${opportunity.symbol.toUpperCase()} from ${fromSpecificChain.toUpperCase()} with ${currentPositionSizeInUsdc.toFixed(2)} USDC.`); // Log USDC amount
 
         try {
+            
             const tradeResult = await recall.executeTrade({
                 fromToken: fromTokenAddress,
                 toToken: opportunity.address,
@@ -524,7 +571,9 @@ async function executeTrades(opportunities: any[], tradeableEvmUsdcBalances: Map
             // For WETH, we explicitly wanted to buy 1 token, so use that.
             // For others, use the amount returned by the tradeResult.
             const finalTokenAmountToBuy =  tradeResult.transaction.toAmount;
-
+            const recallPriceResult = await recall.getPrice({ token: opportunity.address, chain: opportunity.chain, specificChain: opportunity.specificChain });
+            const currentPrice = recallPriceResult.price;
+            
             await tradeManager.addOpenTrade({
                 id: tradeResult.transaction.id,
                 fromToken: fromTokenAddress,
@@ -537,7 +586,8 @@ async function executeTrades(opportunities: any[], tradeableEvmUsdcBalances: Map
                 toChain: opportunity.chain,
                 toSpecificChain: opportunity.specificChain,
                 toAmount: finalTokenAmountToBuy, // Amount of token received
-                price: opportunity.current_price,
+                oprice: opportunity.current_price,
+                price:currentPrice,
                 tradeAmountUsd: currentPositionSizeInUsdc, // Amount of USDC spent
                 timestamp: new Date().toISOString(),
                 competitionId: "N/A",
@@ -576,7 +626,7 @@ async function monitorOpenPositions(marketData: any[]) {
         }
         const currentPrice = recallPriceResult.price; // Use price from Recall
 
-        const dollarPnl = currentPrice - trade.price; // Use Recall price for PnL
+        const dollarPnl = (currentPrice - trade.price) * trade.toAmount;
         const requiredTakeProfit = tokenTakeProfitDollars.get(trade.toTokenSymbol.toUpperCase());
 
         if (requiredTakeProfit !== undefined && dollarPnl >= requiredTakeProfit) {
@@ -587,7 +637,7 @@ async function monitorOpenPositions(marketData: any[]) {
                 await recall.executeTrade({ fromToken: trade.toToken, toToken: toTokenAddress, amount: trade.toAmount, reason, chain: trade.toChain, specificChain: trade.toSpecificChain });
                 await tradeManager.removeOpenTrade(trade.id);
                 console.log(`Closed position for ${trade.toTokenSymbol}.`);
-                await logTrade(`CLOSED: ${trade.toTokenSymbol.toUpperCase()} - Open Price: ${trade.price.toFixed(4)} - Close Price: ${currentPrice.toFixed(4)} - Profit Per Token: ${dollarPnl.toFixed(2)} - Total Profit: ${(dollarPnl * trade.toAmount).toFixed(2)} - Tokens ${trade.toAmount} - Reason: ${reason}`);
+                await logTrade(`CLOSED: ${trade.toTokenSymbol.toUpperCase()} - Open Price: ${trade.price.toFixed(4)} - Close Price: ${currentPrice.toFixed(4)} - Profit: ${dollarPnl.toFixed(2)} - Reason: ${reason}`);
             } catch (error) {
                 console.error(`Error closing position for ${trade.toTokenSymbol}:`, error);
             }
@@ -619,7 +669,7 @@ function calculateEMA(prices: number[], period: number): number[] {
 function calculateATR(ohlcData: number[][], period: number = 14): number {
     if (ohlcData.length < period) return 0;
 
-    let trueRanges: number[] = [];
+    const trueRanges: number[] = [];
     for (let i = 1; i < ohlcData.length; i++) {
         const high = ohlcData[i][2];
         const low = ohlcData[i][3];
@@ -641,6 +691,59 @@ function calculateATR(ohlcData: number[][], period: number = 14): number {
     }
 
     return atr;
+}
+
+function calculateRSI(prices: number[], period: number = 14): number[] {
+    if (prices.length <= period) return [];
+
+    const rsiValues: number[] = [];
+    let avgGain = 0;
+    let avgLoss = 0;
+
+    for (let i = 1; i <= period; i++) {
+        const change = prices[i] - prices[i - 1];
+        if (change > 0) {
+            avgGain += change;
+        } else {
+            avgLoss -= change;
+        }
+    }
+    avgGain /= period;
+    avgLoss /= period;
+
+    let rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
+    rsiValues.push(100 - (100 / (1 + rs)));
+
+    for (let i = period + 1; i < prices.length; i++) {
+        const change = prices[i] - prices[i - 1];
+        let gain = change > 0 ? change : 0;
+        let loss = change < 0 ? -change : 0;
+
+        avgGain = (avgGain * (period - 1) + gain) / period;
+        avgLoss = (avgLoss * (period - 1) + loss) / period;
+
+        rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
+        rsiValues.push(100 - (100 / (1 + rs)));
+    }
+
+    return rsiValues;
+}
+
+function calculateBollingerBands(prices: number[], period: number = 20, stdDev: number = 2) {
+    if (prices.length < period) return null;
+
+    const sma = calculateSMA(prices, period);
+    const middleBand = sma[sma.length - 1];
+    if (middleBand === 0) return null;
+
+    const slice = prices.slice(-period);
+    const standardDeviation = Math.sqrt(slice.map(p => Math.pow(p - middleBand, 2)).reduce((a, b) => a + b, 0) / period);
+
+    return {
+        upper: middleBand + (standardDeviation * stdDev),
+        middle: middleBand,
+        lower: middleBand - (standardDeviation * stdDev),
+    };
 }
 
 main();

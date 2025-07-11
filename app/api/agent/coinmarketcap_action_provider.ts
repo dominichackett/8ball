@@ -5,6 +5,12 @@ const getTokenAddressSchema = z.object({
   symbol: z.string().describe("The symbol of the cryptocurrency, e.g., 'USDC'"),
 });
 
+interface TokenAddressResponse {
+    success: boolean;
+    address?: string;
+    error?: string;
+}
+
 class CoinMarketCapActionProvider extends ActionProvider<WalletProvider> {
     constructor() {
         super("CoinMarketCap", []);
@@ -15,7 +21,7 @@ class CoinMarketCapActionProvider extends ActionProvider<WalletProvider> {
         description: "Retrieves the Ethereum mainnet contract address for a given cryptocurrency symbol.",
         schema: getTokenAddressSchema,
     })
-    async getTokenAddress(args: z.infer<typeof getTokenAddressSchema>): Promise<any> {
+    async getTokenAddress(args: z.infer<typeof getTokenAddressSchema>): Promise<TokenAddressResponse> {
         const { symbol } = args;
 
         if (!process.env.COINMARKETCAP_API_KEY) {
@@ -62,7 +68,7 @@ class CoinMarketCapActionProvider extends ActionProvider<WalletProvider> {
         }
     }
 
-    supportsNetwork = (network: Network) => true;
+    supportsNetwork = (_network: Network) => true;
 }
 
 export const coinmarketcapActionProvider = () => new CoinMarketCapActionProvider();

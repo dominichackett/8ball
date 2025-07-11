@@ -1,6 +1,6 @@
 import { ActionProvider, CreateAction, Network, WalletProvider } from "@coinbase/agentkit";
 import { z } from "zod";
-import axios from "axios";
+import axios, { AxiosRequestConfig } from "axios";
 import 'dotenv/config';
 
 const coingeckoApi = axios.create({
@@ -8,6 +8,11 @@ const coingeckoApi = axios.create({
     headers: process.env.COINGECKO_API_KEY ? { 'x-cg-demo-api-key': process.env.COINGECKO_API_KEY } : {},
 });
 
+interface ApiResponse<T> {
+    success: boolean;
+    data?: T;
+    error?: string;
+}
 
 export class CoinGeckoActionProvider extends ActionProvider<WalletProvider> {
   constructor() {
@@ -23,10 +28,10 @@ export class CoinGeckoActionProvider extends ActionProvider<WalletProvider> {
       includeChanges: z.boolean().optional().describe("Include 24h price change percentage"),
     }),
   })
-  async getCurrentPrices(input: z.infer<typeof this.getCurrentPrices.schema>): Promise<any> {
+  async getCurrentPrices(input: z.infer<typeof this.getCurrentPrices.schema>): Promise<ApiResponse<Record<string, { usd: number; usd_24h_change: number }>>> {
     try {
       const { coinIds, vsCurrency, includeChanges } = input;
-      const params: any = {
+      const params: Record<string, string> = {
         ids: coinIds.join(","),
         vs_currencies: vsCurrency,
       };
@@ -37,11 +42,12 @@ export class CoinGeckoActionProvider extends ActionProvider<WalletProvider> {
       const response = await coingeckoApi.get(`/simple/price`, {
         params,
         timeout: 5000,
-      });
+      } as AxiosRequestConfig);
       return { success: true, data: response.data };
-    } catch (error: any) {
-      console.error("Error fetching current prices:", error);
-      return { success: false, error: error.message };
+    } catch (error) {
+      const err = error as Error;
+      console.error("Error fetching current prices:", err);
+      return { success: false, error: err.message };
     }
   }
 
@@ -55,10 +61,10 @@ export class CoinGeckoActionProvider extends ActionProvider<WalletProvider> {
       priceChangePercentage: z.string().optional().describe("Include price change percentage for 1h, 24h, 7d, 14d, 30d, 200d, 1y (e.g., '24h,7d')"),
     }),
   })
-  async getMarketData(input: z.infer<typeof this.getMarketData.schema>): Promise<any> {
+  async getMarketData(input: z.infer<typeof this.getMarketData.schema>): Promise<ApiResponse<unknown[]>> {
     try {
       const { vsCurrency, order, perPage, priceChangePercentage } = input;
-      const params: any = {
+      const params: Record<string, string | number> = {
         vs_currency: vsCurrency,
       };
       if (order) params.order = order;
@@ -68,11 +74,12 @@ export class CoinGeckoActionProvider extends ActionProvider<WalletProvider> {
       const response = await coingeckoApi.get(`/coins/markets`, {
         params,
         timeout: 5000,
-      });
+      } as AxiosRequestConfig);
       return { success: true, data: response.data };
-    } catch (error: any) {
-      console.error("Error fetching market data:", error);
-      return { success: false, error: error.message };
+    } catch (error) {
+      const err = error as Error;
+      console.error("Error fetching market data:", err);
+      return { success: false, error: err.message };
     }
   }
 
@@ -86,10 +93,10 @@ export class CoinGeckoActionProvider extends ActionProvider<WalletProvider> {
       interval: z.string().optional().describe("Data interval (e.g., 'daily', 'hourly')"),
     }),
   })
-  async getHistoricalChart(input: z.infer<typeof this.getHistoricalChart.schema>): Promise<any> {
+  async getHistoricalChart(input: z.infer<typeof this.getHistoricalChart.schema>): Promise<ApiResponse<{ prices: number[][]; market_caps: number[][]; total_volumes: number[][] }>> {
     try {
       const { coinId, vsCurrency, days, interval } = input;
-      const params: any = {
+      const params: Record<string, string> = {
         vs_currency: vsCurrency,
         days: days.toString(),
       };
@@ -98,11 +105,12 @@ export class CoinGeckoActionProvider extends ActionProvider<WalletProvider> {
       const response = await coingeckoApi.get(`/coins/${coinId}/market_chart`, {
         params,
         timeout: 10000,
-      });
+      } as AxiosRequestConfig);
       return { success: true, data: response.data };
-    } catch (error: any) {
-      console.error("Error fetching historical chart data:", error);
-      return { success: false, error: error.message };
+    } catch (error) {
+      const err = error as Error;
+      console.error("Error fetching historical chart data:", err);
+      return { success: false, error: err.message };
     }
   }
 
@@ -111,15 +119,16 @@ export class CoinGeckoActionProvider extends ActionProvider<WalletProvider> {
     description: "Fetches hot/trending cryptocurrencies.",
     schema: z.object({}),
   })
-  async getTrendingTokens(): Promise<any> {
+  async getTrendingTokens(): Promise<ApiResponse<{ coins: { item: { id: string; name: string; symbol: string; market_cap_rank: number; } }[] }>> {
     try {
       const response = await coingeckoApi.get(`/search/trending`, {
         timeout: 5000,
-      });
+      } as AxiosRequestConfig);
       return { success: true, data: response.data };
-    } catch (error: any) {
-      console.error("Error fetching trending tokens:", error);
-      return { success: false, error: error.message };
+    } catch (error) {
+      const err = error as Error;
+      console.error("Error fetching trending tokens:", err);
+      return { success: false, error: err.message };
     }
   }
 
@@ -131,7 +140,7 @@ export class CoinGeckoActionProvider extends ActionProvider<WalletProvider> {
       duration: z.enum(["1h", "24h", "7d", "30d"]).describe("Duration for gainers/losers"),
     }),
   })
-  async getTopGainersLosers(input: z.infer<typeof this.getTopGainersLosers.schema>): Promise<any> {
+  async getTopGainersLosers(input: z.infer<typeof this.getTopGainersLosers.schema>): Promise<ApiResponse<{ gainers: unknown[]; losers: unknown[] }>> {
     try {
       const { vsCurrency, duration } = input;
       const response = await coingeckoApi.get(`/coins/markets`, {
@@ -142,23 +151,24 @@ export class CoinGeckoActionProvider extends ActionProvider<WalletProvider> {
           per_page: 250,
         },
         timeout: 5000,
-      });
+      } as AxiosRequestConfig);
 
-      const coins = response.data;
+      const coins = response.data as { [key: string]: number | string }[];
       const priceChangeField = `price_change_percentage_${duration}_in_currency`;
       
       const gainers = coins
-        .filter((coin: any) => coin[priceChangeField] != null && coin[priceChangeField] > 0)
-        .sort((a: any, b: any) => b[priceChangeField] - a[priceChangeField]);
+        .filter((coin) => coin[priceChangeField] != null && (coin[priceChangeField] as number) > 0)
+        .sort((a, b) => (b[priceChangeField] as number) - (a[priceChangeField] as number));
         
       const losers = coins
-        .filter((coin: any) => coin[priceChangeField] != null && coin[priceChangeField] < 0)
-        .sort((a: any, b: any) => a[priceChangeField] - b[priceChangeField]);
+        .filter((coin) => coin[priceChangeField] != null && (coin[priceChangeField] as number) < 0)
+        .sort((a, b) => (a[priceChangeField] as number) - (b[priceChangeField] as number));
 
       return { success: true, data: { gainers: gainers.slice(0, 10), losers: losers.slice(0, 10) } };
-    } catch (error: any) {
-      console.error("Error fetching top gainers/losers:", error);
-      return { success: false, error: error.message };
+    } catch (error) {
+      const err = error as Error;
+      console.error("Error fetching top gainers/losers:", err);
+      return { success: false, error: err.message };
     }
   }
 
@@ -167,15 +177,16 @@ export class CoinGeckoActionProvider extends ActionProvider<WalletProvider> {
     description: "Fetches global market cap, BTC dominance, and other global metrics.",
     schema: z.object({}),
   })
-  async getGlobalMarketData(): Promise<any> {
+  async getGlobalMarketData(): Promise<ApiResponse<{ data: { active_cryptocurrencies: number; upcoming_icos: number; ongoing_icos: number; ended_icos: number; markets: number; total_market_cap: { [key: string]: number }; total_volume: { [key: string]: number }; market_cap_percentage: { [key: string]: number }; market_cap_change_percentage_24h_usd: number; updated_at: number; } }>> {
     try {
       const response = await coingeckoApi.get(`/global`, {
         timeout: 5000,
-      });
+      } as AxiosRequestConfig);
       return { success: true, data: response.data };
-    } catch (error: any) {
-      console.error("Error fetching global market data:", error);
-      return { success: false, error: error.message };
+    } catch (error) {
+      const err = error as Error;
+      console.error("Error fetching global market data:", err);
+      return { success: false, error: err.message };
     }
   }
 
@@ -183,20 +194,20 @@ export class CoinGeckoActionProvider extends ActionProvider<WalletProvider> {
     name: "getDEXPools",
     description: "Fetches on-chain DEX liquidity data.",
     schema: z.object({
-      network: z.string().describe("The blockchain network (e.g., 'ethereum', 'solana')"),
       tokenAddress: z.string().describe("The token contract address"),
     }),
   })
-  async getDEXPools(input: z.infer<typeof this.getDEXPools.schema>): Promise<any> {
+  async getDEXPools(input: z.infer<typeof this.getDEXPools.schema>): Promise<ApiResponse<unknown>> {
     try {
-      const { network, tokenAddress } = input;
-      const response = await coingeckoApi.get(`/onchain/networks/${network}/tokens/${tokenAddress}/pools`, {
+      const { tokenAddress } = input;
+      const response = await coingeckoApi.get(`/onchain/networks/ethereum/tokens/${tokenAddress}/pools`, {
         timeout: 10000,
-      });
+      } as AxiosRequestConfig);
       return { success: true, data: response.data };
-    } catch (error: any) {
-      console.error("Error fetching DEX pools:", error);
-      return { success: false, error: error.message };
+    } catch (error) {
+      const err = error as Error;
+      console.error("Error fetching DEX pools:", err);
+      return { success: false, error: err.message };
     }
   }
 
@@ -207,20 +218,21 @@ export class CoinGeckoActionProvider extends ActionProvider<WalletProvider> {
       exchangeId: z.string().describe("The exchange ID (e.g., 'binance')"),
     }),
   })
-  async getExchangeData(input: z.infer<typeof this.getExchangeData.schema>): Promise<any> {
+  async getExchangeData(input: z.infer<typeof this.getExchangeData.schema>): Promise<ApiResponse<unknown>> {
     try {
       const { exchangeId } = input;
       const response = await coingeckoApi.get(`/exchanges/${exchangeId}`, {
         timeout: 5000,
-      });
+      } as AxiosRequestConfig);
       return { success: true, data: response.data };
-    } catch (error: any) {
-      console.error("Error fetching exchange data:", error);
-      return { success: false, error: error.message };
+    } catch (error) {
+      const err = error as Error;
+      console.error("Error fetching exchange data:", err);
+      return { success: false, error: err.message };
     }
   }
 
-  supportsNetwork(network: Network): boolean {
+  supportsNetwork(_network: Network): boolean {
     return true;
   }
 }

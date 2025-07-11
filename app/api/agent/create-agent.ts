@@ -3,8 +3,6 @@ import { MemorySaver } from "@langchain/langgraph";
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
 import { ChatOpenAI } from "@langchain/openai";
 import { prepareAgentkitAndWalletProvider } from "./prepare-agentkit";
-import { CoinGeckoActionProvider } from "./coingecko_action_provider";
-import { recallActionProvider } from "./recall_action_provider";
 
 /**
  * Agent Configuration Guide

@@ -1,5 +1,5 @@
 
-import { ActionProvider, AgentContext, Action, InputSchema } from "@coinbase/agentkit";
+import { ActionProvider, Action, InputSchema } from "@coinbase/agentkit";
 import axios from "axios";
 import { z } from "zod";
 
@@ -29,7 +29,7 @@ const PriceOutputSchema = z.object({
   chain: z.string(),
   specificChain: z.string(),
   timestamp: z.string(),
-  metadata: z.record(z.any()).optional(), // Allow additional metadata
+  metadata: z.record(z.unknown()).optional(), // Allow additional metadata
 });
 
 export class PriceActionProvider implements ActionProvider {
@@ -72,8 +72,7 @@ export class PriceActionProvider implements ActionProvider {
   };
 
   async invoke(
-    input: z.infer<typeof PriceInputSchema>,
-    context: AgentContext
+    input: z.infer<typeof PriceInputSchema>
   ): Promise<Action> {
     try {
       // Validate input using Zod
@@ -113,7 +112,7 @@ export class PriceActionProvider implements ActionProvider {
       return {
         outputs: PriceOutputSchema.parse(formattedResponse),
       };
-    } catch (error: any) {
+    } catch (error) {
       // Handle errors and provide meaningful messages
       if (axios.isAxiosError(error)) {
         if (error.code === "ECONNABORTED") {
@@ -138,7 +137,8 @@ export class PriceActionProvider implements ActionProvider {
         // Handle Zod validation errors
         throw new Error(`Input validation error: ${error.errors.map(e => e.message).join(", ")}`);
       } else {
-        throw new Error(`Failed to fetch token price: ${error.message}`);
+        const err = error as Error;
+        throw new Error(`Failed to fetch token price: ${err.message}`);
       }
     }
   }

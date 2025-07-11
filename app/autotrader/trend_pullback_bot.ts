@@ -4,15 +4,42 @@ import * as coingecko from './providers/coingecko';
 import * as tradeManager from './trend_pullback_trade_manager';
 import { logTrade } from './utils/logger';
 
+// --- Type Definitions ---
+interface Balance {
+    symbol: string;
+    chain: 'evm' | 'svm';
+    specificChain: string;
+    amount: number;
+    tokenAddress: string;
+}
+
+interface CoinData {
+    id: string;
+    symbol: string;
+    current_price: number;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    [key: string]: any;
+}
+
+interface Opportunity extends CoinData {
+    address: string;
+    chain: 'evm' | 'svm';
+    specificChain: string;
+    isOpportunity: boolean;
+    lastEma: number;
+    aiConfidence?: number;
+    aiReason?: string;
+}
+
 // --- Bot Configuration ---
 const POLLING_INTERVAL = 5 * 60 * 1000; // 5 minutes
 const MARKET_TREND_ASSET = 'wrapped-bitcoin'; // Use WBTC to gauge market trend
 
 // --- Global AI Configuration ---
-let OVERRIDE_ENABLED = process.env.BOT_OVERRIDE_ENABLED === 'true';
-let DEFAULT_AI_CONFIDENCE_THRESHOLD = 0.70; // Use 70% as the default AI confidence threshold
-let OVERRIDE_AI_CONFIDENCE_THRESHOLD = parseFloat(process.env.BOT_CONFIDENCE_THRESHOLD || '0.75');
-let ATR_THRESHOLD = 1;
+const OVERRIDE_ENABLED = process.env.BOT_OVERRIDE_ENABLED === 'true';
+const DEFAULT_AI_CONFIDENCE_THRESHOLD = 0.70; // Use 70% as the default AI confidence threshold
+const OVERRIDE_AI_CONFIDENCE_THRESHOLD = parseFloat(process.env.BOT_CONFIDENCE_THRESHOLD || '0.75');
+const ATR_THRESHOLD = 1;
 
 // --- Strategy Parameters ---
 const strategyParameters = {
@@ -26,18 +53,38 @@ const strategyParameters = {
 
 // New: Token-specific dollar take profit values
 const tokenTakeProfitDollars = new Map<string, number>();
-tokenTakeProfitDollars.set('WETH', 50);
-tokenTakeProfitDollars.set('SOL', .3);
-tokenTakeProfitDollars.set('LINK', .20);
+tokenTakeProfitDollars.set('WETH', 77);
+tokenTakeProfitDollars.set('SOL', .4);
+tokenTakeProfitDollars.set('LINK', .40);
 tokenTakeProfitDollars.set('UNI', 0.20);
-tokenTakeProfitDollars.set('POL', 0.02);
-tokenTakeProfitDollars.set('WXRP', 0.02);
+tokenTakeProfitDollars.set('POL', 0.04);
+tokenTakeProfitDollars.set('WXRP', 0.04);
+tokenTakeProfitDollars.set('YBR', 0.0003);
+tokenTakeProfitDollars.set('XERAI', 0.0001);
+tokenTakeProfitDollars.set('∑', 0.016);
+tokenTakeProfitDollars.set('DOUG', 0.002);
+
+
+
+// New: Token-specific position sizes
+const tokenPositionSizes = new Map<string, number>();
+tokenPositionSizes.set('WETH', 1); // Special case: 1 token
+tokenPositionSizes.set('LINK', 3000);
+tokenPositionSizes.set('SOL', 2000);
+tokenPositionSizes.set('UNI', 3000);
+tokenPositionSizes.set('YBR', 4000);
+
+tokenPositionSizes.set('POL', 2000);
+tokenPositionSizes.set('WXRP', 2000);
+tokenPositionSizes.set('XERAI', 3000);
+tokenPositionSizes.set('∑', 2000);
+tokenPositionSizes.set('DOUG', 2000);
 
 // --- Token Configuration ---
 const TRADABLE_TOKENS = new Map<string, { address: string; chain: 'evm' | 'svm'; specificChain: string; symbol: string }>();
 const USDC_ADDRESS = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
 const USDC_SVM_ADDRESS = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
-let CLOSE_ALL_POSITIONS = process.env.BOT_CLOSE_ALL_POSITIONS === 'true';
+const CLOSE_ALL_POSITIONS = process.env.BOT_CLOSE_ALL_POSITIONS === 'true';
 
 // --- Main Application ---
 async function main() {
@@ -90,7 +137,13 @@ async function initializeTradableTokens() {
     TRADABLE_TOKENS.set('wrapped-xrp', { address: '0x39fbbabf11738317a448031930706cd3e612e1b9', chain: 'evm', specificChain: 'eth', symbol: 'WXRP' });
     TRADABLE_TOKENS.set('uniswap', { address: '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984', chain: 'evm', specificChain: 'eth', symbol: 'UNI' });
     TRADABLE_TOKENS.set('polygon-ecosystem-token', { address: '0x455e53cbb86018ac2b8092fdcd39d8444affc3f6', chain: 'evm', specificChain: 'eth', symbol: 'POL' });
+    TRADABLE_TOKENS.set('yieldbricks', { address: '0x11920f139a3121c2836e01551d43f95b3c31159c', chain: 'evm', specificChain: 'arbitrum', symbol: 'YBR' });
+    TRADABLE_TOKENS.set('xero-ai-2', { address: '0x72bb0df29b6c595d0636bf028c3093a0d7fd9403', chain: 'evm', specificChain: 'eth', symbol: 'XERAI' });
 
+    TRADABLE_TOKENS.set('-9', { address: '0xb772c8745c46c8868610dcecdcefc803cfdf28f5', chain: 'evm', specificChain: 'eth', symbol: '∑' });
+        TRADABLE_TOKENS.set('doug-2', { address: 'AQiE2ghyFbBsbsfHiTEbKWcCLTDgyGzceKEPWftZpump', chain: 'svm', specificChain: 'svm', symbol: 'DOUG' });
+
+    
     console.log(`Initialization complete. ${TRADABLE_TOKENS.size} tokens are tradable.`);
 }
 
@@ -108,10 +161,10 @@ async function runTradingCycle() {
 
     if (!marketData || marketData.length === 0) return;
 
-    let tradeableEvmUsdcBalances = new Map<string, { amount: number, address: string }>();
+    const tradeableEvmUsdcBalances = new Map<string, { amount: number, address: string }>();
     let svmUsdcBalance = 0;
     if (agentBalances) {
-        agentBalances.balances.forEach((balance: any) => {
+        agentBalances.balances.forEach((balance: Balance) => {
             if ((balance.symbol === 'USDC' || balance.symbol ==='USDbC' )) {
                 if (balance.chain === 'evm') {
                     tradeableEvmUsdcBalances.set(balance.specificChain, { amount: (tradeableEvmUsdcBalances.get(balance.specificChain)?.amount || 0) + balance.amount, address: balance.tokenAddress });
@@ -136,7 +189,7 @@ async function runTradingCycle() {
     console.log("-------------------------");
     // --- End New Logging Logic ---
 
-    await monitorOpenPositions(marketData);
+    await monitorOpenPositions();
 
     if (marketTrend === 'UPTREND') {
       if (tradeManager.getOpenTrades().length >= strategyParameters.maxConcurrentPositions) return;
@@ -176,8 +229,8 @@ async function getOverallMarketTrend(): Promise<'UPTREND' | 'DOWNTREND' | 'SIDEW
     }
 }
 
-async function findPullbackOpportunities(marketData: any[], marketTrend: string): Promise<any[]> {
-    let opportunities = [];
+async function findPullbackOpportunities(marketData: CoinData[], marketTrend: string): Promise<Opportunity[]> {
+    const opportunities: Opportunity[] = [];
     for (const coin of marketData) {
         if (!TRADABLE_TOKENS.has(coin.id)) continue;
 
@@ -227,25 +280,25 @@ async function findPullbackOpportunities(marketData: any[], marketTrend: string)
         const coingeckoCurrentPrice = coin.current_price;
 
         console.log(`--- ${coin.symbol.toUpperCase()} Analysis ---`);
-        console.log(`  Current Price (Recall): ${currentPrice.toFixed(4)}`);
-        console.log(`  Current Price (CoinGecko): ${coingeckoCurrentPrice.toFixed(4)}`); // New line
-        console.log(`  Last EMA (${strategyParameters.entryEmaPeriod}-period): ${lastEma.toFixed(4)}`);
-        console.log(`  ATR: ${atr.toFixed(4)}`);
-        console.log(`  ATR Threshold (${ATR_THRESHOLD} * ATR): ${atrThreshold.toFixed(4)}`);
+        console.log(`  Current Price (Recall): ${currentPrice.toFixed(5)}`);
+        console.log(`  Current Price (CoinGecko): ${coingeckoCurrentPrice.toFixed(5)}`); // New line
+        console.log(`  Last EMA (${strategyParameters.entryEmaPeriod}-period): ${lastEma.toFixed(5)}`);
+        console.log(`  ATR: ${atr.toFixed(5)}`);
+        console.log(`  ATR Threshold (${ATR_THRESHOLD} * ATR): ${atrThreshold.toFixed(5)}`);
         console.log(`  Is Near EMA: ${isNearEma}`);
         console.log(`  Is Opportunity (Price > EMA && Is Near EMA): ${isOpportunity}`);
         console.log(`--------------------------`);
 
         if (isOpportunity) {
             const tokenInfo = TRADABLE_TOKENS.get(coin.id);
-            const opportunityDetails = { ...coin, ...tokenInfo, isOpportunity, lastEma };
+            const opportunityDetails = { ...coin, ...tokenInfo, isOpportunity, lastEma } as Opportunity;
             const { confidence, reason } = await getTradeConfidence(opportunityDetails, marketTrend);
             opportunities.push({ ...opportunityDetails, aiConfidence: confidence, aiReason: reason });
         }
     }
     return opportunities;}
 
-async function getTradeConfidence(opportunity: any, marketTrend: string): Promise<{ confidence: number; reason: string }> {
+async function getTradeConfidence(opportunity: Opportunity, marketTrend: string): Promise<{ confidence: number; reason: string }> {
     const prompt = `
     Analyze the following trade opportunity and provide a confidence score from 0.0 to 1.0 for a BUY trade.
     A score of 1.0 represents maximum confidence. Return ONLY the numeric score, enclosed within <score> tags (e.g., <score>0.85</score>).
@@ -292,7 +345,7 @@ async function getTradeConfidence(opportunity: any, marketTrend: string): Promis
             }
         }
 
-        const reason = aiResponse.replace(/<score>([0-9.]+)<\/score>/, '').trim(); // Corrected regex
+        const reason = aiResponse.replace(/<score>([0-9.]+) <\/score>/, '').trim(); // Corrected regex
         console.log(`AI confidence for ${opportunity.symbol.toUpperCase()}: ${confidence.toFixed(2)} (Bot Opportunity: ${opportunity.isOpportunity})`);
         return { confidence, reason };
 
@@ -302,7 +355,7 @@ async function getTradeConfidence(opportunity: any, marketTrend: string): Promis
     }
 }
 
-async function executeTrades(opportunities: any[], tradeableEvmUsdcBalances: Map<string, { amount: number, address: string }>, svmUsdcBalance: number) {
+async function executeTrades(opportunities: Opportunity[], tradeableEvmUsdcBalances: Map<string, { amount: number, address: string }>, svmUsdcBalance: number) {
     if (opportunities.length === 0) return;
 
     for (const opportunity of opportunities) {
@@ -322,22 +375,28 @@ async function executeTrades(opportunities: any[], tradeableEvmUsdcBalances: Map
         }
 
         let currentPositionSizeInUsdc; // This will be the USDC amount to spend
-        let tokenAmountToBuy; // This will be the amount of the token to receive
+
+        const positionSize = tokenPositionSizes.get(opportunity.symbol.toUpperCase());
+
+        if (positionSize === undefined) {
+            console.log(`No position size configured for ${opportunity.symbol.toUpperCase()}. Skipping trade.`);
+            continue;
+        }
 
         if (opportunity.symbol.toUpperCase() === 'WETH') {
-            // Get WETH price in USDC using recall.getPrice
+            // WETH is a special case where the size is in tokens, not USDC
             const wethPriceResult = await recall.getPrice({ token: TRADABLE_TOKENS.get('weth')?.address, chain: 'evm', specificChain: 'eth' });
             if (!wethPriceResult || !wethPriceResult.price) {
                 console.log(`Could not get current price for WETH using recall. Skipping trade.`);
                 continue;
             }
             const wethPriceInUsdc = wethPriceResult.price;
-            currentPositionSizeInUsdc = wethPriceInUsdc; // Cost to buy 1 WETH
-            tokenAmountToBuy = 1; // We want to buy 1 WETH
+            currentPositionSizeInUsdc = wethPriceInUsdc * positionSize; // positionSize is 1 for WETH
         } else {
-            currentPositionSizeInUsdc = 1000; // Spend 1000 USDC for other tokens
-            tokenAmountToBuy = 0; // This will be determined by the recall.executeTrade result
+            // For all other tokens, the position size is in USDC
+            currentPositionSizeInUsdc = positionSize;
         }
+
 
         let fromTokenAddress, fromChain, fromSpecificChain;
 
@@ -365,7 +424,7 @@ async function executeTrades(opportunities: any[], tradeableEvmUsdcBalances: Map
             continue;
         }
 
-        const reason = opportunity.aiReason ? `AI Reason: ${opportunity.aiReason}` : `AI-driven trend/pullback trade. Confidence: ${(opportunity.aiConfidence * 100).toFixed(0)}%.`;
+        const reason = opportunity.aiReason ? `AI Reason: ${opportunity.aiReason}` : `AI-driven trend/pullback trade. Confidence: ${(opportunity.aiConfidence! * 100).toFixed(0)}%.`;
         console.log(`Executing BUY for ${opportunity.symbol.toUpperCase()} from ${fromSpecificChain.toUpperCase()} with ${currentPositionSizeInUsdc.toFixed(2)} USDC.`); // Log USDC amount
 
         try {
@@ -381,7 +440,8 @@ async function executeTrades(opportunities: any[], tradeableEvmUsdcBalances: Map
             // For WETH, we explicitly wanted to buy 1 token, so use that.
             // For others, use the amount returned by the tradeResult.
             const finalTokenAmountToBuy =  tradeResult.transaction.toAmount;
-
+  const recallPriceResult = await recall.getPrice({ token: opportunity.address, chain: opportunity.chain, specificChain: opportunity.specificChain });
+ const currentPrice = recallPriceResult.price;
             await tradeManager.addOpenTrade({
                 id: tradeResult.transaction.id,
                 fromToken: fromTokenAddress,
@@ -394,7 +454,9 @@ async function executeTrades(opportunities: any[], tradeableEvmUsdcBalances: Map
                 toChain: opportunity.chain,
                 toSpecificChain: opportunity.specificChain,
                 toAmount: finalTokenAmountToBuy, // Amount of token received
-                price: opportunity.current_price,
+                oprice: opportunity.current_price,
+                price:currentPrice,
+                tprice:tradeResult.transaction.price,
                 tradeAmountUsd: currentPositionSizeInUsdc, // Amount of USDC spent
                 timestamp: new Date().toISOString(),
                 competitionId: "N/A",
@@ -409,13 +471,13 @@ async function executeTrades(opportunities: any[], tradeableEvmUsdcBalances: Map
     }
 }
 
-async function monitorOpenPositions(marketData: any[]) {
+async function monitorOpenPositions() {
     const openTrades = tradeManager.getOpenTrades();
     if (openTrades.length === 0) return;
 
     for (const trade of openTrades) {
         let tokenInfo = null;
-        for (const [key, value] of TRADABLE_TOKENS.entries()) {
+        for (const [, value] of TRADABLE_TOKENS.entries()) {
             if (value.symbol.toLowerCase() === trade.toTokenSymbol.toLowerCase()) {
                 tokenInfo = value;
                 break;
@@ -476,7 +538,7 @@ function calculateEMA(prices: number[], period: number): number[] {
 function calculateATR(ohlcData: number[][], period: number = 14): number {
     if (ohlcData.length < period) return 0;
 
-    let trueRanges: number[] = [];
+    const trueRanges: number[] = [];
     for (let i = 1; i < ohlcData.length; i++) {
         const high = ohlcData[i][2];
         const low = ohlcData[i][3];
