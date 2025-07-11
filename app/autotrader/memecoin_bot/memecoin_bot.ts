@@ -49,37 +49,43 @@ async function runMemeCoinCycle() {
             }
 
             // 2. EXECUTION: If checks pass, execute the trade
-            console.log(`Attempting to BUY trending meme coin: ${pair.symbol}`);
-            try {
-                // NOTE: You need to specify your source of funds (USDC address)
-                const USDC_ADDRESS = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"; // <--- IMPORTANT: Replace with your actual USDC address
-                
-                const tradeResult = await recall.executeTrade({
-                    fromToken: USDC_ADDRESS,
-                    toToken: pair.tokenAddress,
-                    amount: POSITION_SIZE_USD.toString(),
-                    reason: `Automated meme coin trade based on trending data.`,
-                    chain: pair.chain,
-                    specificChain: pair.specificChain
-                });
+            const TRADING_ENABLED = process.env.TRADING_ENABLED === 'true';
 
-                const tradeData = {
-                    id: tradeResult.transaction.id,
-                    toTokenSymbol: pair.symbol,
-                    toTokenAddress: pair.tokenAddress,
-                    amount: tradeResult.transaction.toAmount,
-                    price: pair.priceUsd, // The price at the time of discovery
-                    timestamp: new Date().toISOString(),
-                    chain: pair.chain,
-                    specificChain: pair.specificChain
-                };
+            if (TRADING_ENABLED) {
+                console.log(`Attempting to BUY trending meme coin: ${pair.symbol}`);
+                try {
+                    // NOTE: You need to specify your source of funds (USDC address)
+                    const USDC_ADDRESS = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"; // <--- IMPORTANT: Replace with your actual USDC address
+                    
+                    const tradeResult = await recall.executeTrade({
+                        fromToken: USDC_ADDRESS,
+                        toToken: pair.tokenAddress,
+                        amount: POSITION_SIZE_USD.toString(),
+                        reason: `Automated meme coin trade based on trending data.`,
+                        chain: pair.chain,
+                        specificChain: pair.specificChain
+                    });
 
-                await tradeManager.addOpenTrade(tradeData);
-                await logTrade(`OPENED: ${pair.symbol} - Amount: ${tradeData.amount} - Price: ${tradeData.price}`);
-                console.log(`Successfully executed BUY for ${pair.symbol}.`);
+                    const tradeData = {
+                        id: tradeResult.transaction.id,
+                        toTokenSymbol: pair.symbol,
+                        toTokenAddress: pair.tokenAddress,
+                        amount: tradeResult.transaction.toAmount,
+                        price: pair.priceUsd, // The price at the time of discovery
+                        timestamp: new Date().toISOString(),
+                        chain: pair.chain,
+                        specificChain: pair.specificChain
+                    };
 
-            } catch (error) {
-                console.error(`Failed to execute trade for ${pair.symbol}:`, error);
+                    await tradeManager.addOpenTrade(tradeData);
+                    await logTrade(`OPENED: ${pair.symbol} - Amount: ${tradeData.amount} - Price: ${tradeData.price}`);
+                    console.log(`Successfully executed BUY for ${pair.symbol}.`);
+
+                } catch (error) {
+                    console.error(`Failed to execute trade for ${pair.symbol}:`, error);
+                }
+            } else {
+                console.log(`[TRADING DISABLED] Potential trade: BUY ${pair.symbol} at ${pair.priceUsd}`);
             }
         }
     } catch (error) {

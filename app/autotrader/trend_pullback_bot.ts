@@ -54,7 +54,7 @@ const strategyParameters = {
 // New: Token-specific dollar take profit values
 const tokenTakeProfitDollars = new Map<string, number>();
 tokenTakeProfitDollars.set('WETH', 77);
-tokenTakeProfitDollars.set('SOL', .4);
+tokenTakeProfitDollars.set('SOL', 3);
 tokenTakeProfitDollars.set('LINK', .40);
 tokenTakeProfitDollars.set('UNI', 0.20);
 tokenTakeProfitDollars.set('POL', 0.04);
