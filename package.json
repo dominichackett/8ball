@@ -10,7 +10,8 @@
     "trade": "tsx app/autotrader/intraday_swing_bot.ts",
     "trend":"tsx app/autotrader/trend_pullback_bot.ts",
      "ndtrend":"tsx app/autotrader/neutral_downtrend_bot/neutral_downtrend_bot.ts",
-     "meme":"tsx app/autotrader/memecoin_bot/memecoin_bot.ts"
+     "meme":"tsx app/autotrader/memecoin_bot/memecoin_bot.ts",
+     "solanameme":"tsx app/autotrader/solana_memecoin_bot/solana_memecoin_bot.ts"
     
   },
   "dependencies": {

@@ -42,7 +42,7 @@ async function runMemeCoinCycle() {
             }
 
             // New: Check if the price is below the threshold
-            const MAX_PRICE = 0.001;
+            const MAX_PRICE = 0.0001;
             if (pair.priceUsd >= MAX_PRICE) {
                 console.log(`Skipping ${pair.symbol}: Price (${pair.priceUsd}) is not below ${MAX_PRICE}.`);
                 continue;
@@ -125,7 +125,7 @@ async function monitorMemeCoinPositions() {
 
             // EXIT STRATEGY
             const TAKE_PROFIT_PERCENT = 900; // 10x gain
-            const STOP_LOSS_PERCENT = -50;   // Sell after 50% loss
+            const STOP_LOSS_PERCENT = -5;   // Sell after 50% loss
 
             if (pnlPercent >= TAKE_PROFIT_PERCENT || pnlPercent <= STOP_LOSS_PERCENT) {
                 const reason = pnlPercent >= TAKE_PROFIT_PERCENT ? 'Take-Profit' : 'Stop-Loss';

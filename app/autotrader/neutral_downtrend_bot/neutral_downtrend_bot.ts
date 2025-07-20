@@ -324,6 +324,7 @@ async function findSidewaysOpportunities(marketData: any[], marketTrend: string)
         const currentRSI = rsiValues[rsiValues.length - 1];
 
         const bollingerBands = calculateBollingerBands(prices);
+        console.log(bollingerBands)
 
         if (!bollingerBands || rsiValues.length === 0) {
             console.log(`Could not calculate indicators for ${coin.id}. Skipping sideways analysis.`);
@@ -365,7 +366,7 @@ async function findDowntrendOpportunities(marketData: any[], marketTrend: string
     for (const coin of marketData) {
         if (!TRADABLE_TOKENS.has(coin.id)) continue;
 
-        const ohlcData = await coingecko.getOHLC(coin.id, { vs_currency: 'usd', days: 90 }); // More days for 200 EMA
+        const ohlcData = await coingecko.getOHLC(coin.id, { vs_currency: 'usd', days: '365' }); // More days for 200 EMA
         if (!ohlcData || ohlcData.length === 0) {
             console.log(`No OHLC data for ${coin.id}. Skipping downtrend analysis.`);
             continue;
@@ -588,6 +589,7 @@ async function executeTrades(opportunities: any[], tradeableEvmUsdcBalances: Map
                 toAmount: finalTokenAmountToBuy, // Amount of token received
                 oprice: opportunity.current_price,
                 price:currentPrice,
+                tprice: tradeResult.transaction.price,
                 tradeAmountUsd: currentPositionSizeInUsdc, // Amount of USDC spent
                 timestamp: new Date().toISOString(),
                 competitionId: "N/A",

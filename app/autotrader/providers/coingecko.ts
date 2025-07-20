@@ -27,11 +27,11 @@ async function coingeckoApiRequest(endpoint: string, params: any = {}) {
 export const getMarketData = (params: { vs_currency: string, per_page?: number, ids?: string }) => 
     coingeckoApiRequest('/coins/markets', params);
 
-export const getMarketChart = (id: string, params: { vs_currency: string, days: number }) =>
+export const getMarketChart = (id: string, params: { vs_currency: string, days: string }) =>
     coingeckoApiRequest(`/coins/${id}/market_chart`, params);
 
 export const getCoinDetails = (id: string) =>
     coingeckoApiRequest(`/coins/${id}`);
 
-export const getOHLC = (id: string, params: { vs_currency: string, days: number }) =>
+export const getOHLC = (id: string, params: { vs_currency: string, days: string }) =>
     coingeckoApiRequest(`/coins/${id}/ohlc`, params);

@@ -53,16 +53,19 @@ const strategyParameters = {
 
 // New: Token-specific dollar take profit values
 const tokenTakeProfitDollars = new Map<string, number>();
-tokenTakeProfitDollars.set('WETH', 77);
-tokenTakeProfitDollars.set('SOL', 3);
-tokenTakeProfitDollars.set('LINK', .40);
-tokenTakeProfitDollars.set('UNI', 0.20);
-tokenTakeProfitDollars.set('POL', 0.04);
-tokenTakeProfitDollars.set('WXRP', 0.04);
-tokenTakeProfitDollars.set('YBR', 0.0003);
-tokenTakeProfitDollars.set('XERAI', 0.0001);
+tokenTakeProfitDollars.set('WETH', 50);
+tokenTakeProfitDollars.set('SOL', 1.5);
+tokenTakeProfitDollars.set('LINK', .50);
+tokenTakeProfitDollars.set('UNI', 0.50);
+tokenTakeProfitDollars.set('POL', 0.08);
+tokenTakeProfitDollars.set('WXRP', 0.08);
+tokenTakeProfitDollars.set('YBR', 0.0007);
+tokenTakeProfitDollars.set('XERAI', 0.0003);
 tokenTakeProfitDollars.set('∑', 0.016);
 tokenTakeProfitDollars.set('DOUG', 0.002);
+tokenTakeProfitDollars.set('YETI', 0.002);
+tokenTakeProfitDollars.set('CHEEMS', 0.05);
+
 
 
 
@@ -79,6 +82,8 @@ tokenPositionSizes.set('WXRP', 2000);
 tokenPositionSizes.set('XERAI', 3000);
 tokenPositionSizes.set('∑', 2000);
 tokenPositionSizes.set('DOUG', 2000);
+tokenPositionSizes.set('YETI', 628);
+tokenPositionSizes.set('CHEEMS', 200);
 
 // --- Token Configuration ---
 const TRADABLE_TOKENS = new Map<string, { address: string; chain: 'evm' | 'svm'; specificChain: string; symbol: string }>();
@@ -142,7 +147,9 @@ async function initializeTradableTokens() {
 
     TRADABLE_TOKENS.set('-9', { address: '0xb772c8745c46c8868610dcecdcefc803cfdf28f5', chain: 'evm', specificChain: 'eth', symbol: '∑' });
         TRADABLE_TOKENS.set('doug-2', { address: 'AQiE2ghyFbBsbsfHiTEbKWcCLTDgyGzceKEPWftZpump', chain: 'svm', specificChain: 'svm', symbol: 'DOUG' });
-
+TRADABLE_TOKENS.set('yeti-2', { address: 'FuyeX8cpctBwQVDFYgKxYh1JgiXCkK9g4RBVCXm4pump', chain: 'svm', specificChain: 'svm', symbol: 'YETI' });
+TRADABLE_TOKENS.set('cheems', { address: '7pbX3toEbedS6QNgJUDrmbggononFQxjeFVYYwJbonk', chain: 'svm', specificChain: 'svm', symbol: 'CHEEMS' });
+    
     
     console.log(`Initialization complete. ${TRADABLE_TOKENS.size} tokens are tradable.`);
 }
@@ -497,7 +504,7 @@ async function monitorOpenPositions() {
 
         const dollarPnl = currentPrice - trade.price; // Use Recall price for PnL
         const requiredTakeProfit = tokenTakeProfitDollars.get(trade.toTokenSymbol.toUpperCase());
-
+        console.log(`${trade.toTokenSymbol.toUpperCase()} Required Proit ${requiredTakeProfit}: ${dollarPnl} Price:${currentPrice}`)
         if (requiredTakeProfit !== undefined && dollarPnl >= requiredTakeProfit) {
             const reason = 'Take-profit';
             console.log(`Exit condition met for ${trade.toTokenSymbol}: ${reason}.`);

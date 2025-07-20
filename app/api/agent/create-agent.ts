@@ -50,6 +50,8 @@ export async function createAgent(): Promise<ReturnType<typeof createReactAgent>
   try {
     // Initialize LLM: https://platform.openai.com/docs/models#gpt-4o
     const llm = new ChatOpenAI({ model: "gpt-4o-mini" });
+   
+
 
     const tools = await getLangChainTools(agentkit);
     const memory = new MemorySaver();

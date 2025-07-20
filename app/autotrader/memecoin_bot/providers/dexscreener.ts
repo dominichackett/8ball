@@ -101,3 +101,49 @@ export async function getTopTrendingPairs(params: GetTopTrendingPairsParams): Pr
         return []; // Return an empty array on error
     }
 }
+
+export async function getNewPairs(chain: string): Promise<DexScreenerApiPair[]> {
+    try {
+        const response = await fetch(`${API_BASE_URL}/pairs/${chain}/new`);
+        if (!response.ok) {
+            throw new Error(`DEX Screener API request failed with status: ${response.status}`);
+        }
+        const data = await response.json() as { pairs: DexScreenerApiPair[] };
+        if (!data.pairs) {
+            return [];
+        }
+        return data.pairs;
+    } catch (error) {
+        console.error(`Error fetching new pairs for ${chain}:`, error);
+        return [];
+    }
+}
+
+export async function getPairPrice(tokenAddress: string): Promise<{ priceUsd: string } | null> {
+    try {
+        const response = await fetch(`${API_BASE_URL}/search?q=${tokenAddress}`);
+        if (!response.ok) {
+            throw new Error(`DEX Screener API request failed with status: ${response.status}`);
+        }
+        const data = await response.json() as { pairs: DexScreenerApiPair[] };
+
+        if (!data.pairs || data.pairs.length === 0) {
+            console.log(`No pairs found for token ${tokenAddress}.`);
+            return null;
+        }
+
+        // Find the most liquid pair
+        const mostLiquidPair = data.pairs.reduce((prev, current) => {
+            return (prev.liquidity?.usd || 0) > (current.liquidity?.usd || 0) ? prev : current;
+        });
+
+        if (mostLiquidPair && mostLiquidPair.priceUsd) {
+            return { priceUsd: mostLiquidPair.priceUsd };
+        }
+
+        return null;
+    } catch (error) {
+        console.error(`Error fetching price for token ${tokenAddress}:`, error);
+        return null;
+    }
+}
